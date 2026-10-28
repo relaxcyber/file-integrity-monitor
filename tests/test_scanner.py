@@ -40,3 +40,43 @@ def test_empty_folder(tmp_path):
 def test_not_a_folder_raises(tmp_path):
     with pytest.raises(NotADirectoryError):
         scan(tmp_path / "does_not_exist")
+
+
+def test_ignore_file(tmp_path):
+    make_tree(tmp_path)
+    result = scan(tmp_path, ignore=lambda rel: rel.endswith("b.txt"))
+    assert "sub/b.txt" not in result
+    assert "a.txt" in result
+
+
+def test_ignore_folder_skips_everything_inside(tmp_path):
+    make_tree(tmp_path)
+    result = scan(tmp_path, ignore=lambda rel: rel == "sub")
+    assert list(result) == ["a.txt"]
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="no symlink support")
+def test_symlink_is_skipped(tmp_path):
+    (tmp_path / "real.txt").write_text("data")
+    try:
+        os.symlink(tmp_path / "real.txt", tmp_path / "link.txt")
+    except OSError:
+        pytest.skip("not allowed to create symlinks here")
+    assert list(scan(tmp_path)) == ["real.txt"]
+
+
+def test_unreadable_file_is_skipped(tmp_path, monkeypatch):
+    (tmp_path / "good.txt").write_text("ok")
+    (tmp_path / "bad.txt").write_text("secret")
+
+    real_hash = scanner.hash_file
+
+    def fake_hash(path, *args, **kwargs):
+        # pretend one file has no read permission
+        # (chmod does not work for root, so we fake it)
+        if path.name == "bad.txt":
+            raise PermissionError("denied")
+        return real_hash(path, *args, **kwargs)
+
+    monkeypatch.setattr(scanner, "hash_file", fake_hash)
+    assert list(scan(tmp_path)) == ["good.txt"]
