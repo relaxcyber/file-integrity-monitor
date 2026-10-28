@@ -34,3 +34,17 @@ def test_one_byte_changes_hash(tmp_path):
 def test_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         hash_file(tmp_path / "nope.txt")
+
+
+def test_empty_file(tmp_path):
+    f = tmp_path / "empty.bin"
+    f.write_bytes(b"")
+    assert hash_file(f) == hashlib.sha256(b"").hexdigest()
+
+
+def test_file_bigger_than_chunk(tmp_path):
+    # 1 MB of data with a tiny chunk size, so the loop runs many times
+    data = b"abcdefghij" * 100_000
+    f = tmp_path / "big.bin"
+    f.write_bytes(data)
+    assert hash_file(f, chunk_size=1000) == hashlib.sha256(data).hexdigest()
