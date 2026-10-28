@@ -3,12 +3,15 @@
 Owner: Donald. Branch: feature/scanner
 """
 
+import logging
 import os
 import stat
 from pathlib import Path
 
 from fim.hasher import hash_file
 from fim.models import FileRecord
+
+log = logging.getLogger(__name__)
 
 
 def scan(root, ignore=None):
@@ -17,16 +20,22 @@ def scan(root, ignore=None):
     ignore is an optional function that gets a relative path and returns
     True if that file or folder should be skipped. It is a function and not
     a list of patterns so this module does not depend on config.py.
+
+    Files we cannot read are skipped with a warning, one bad file should not
+    stop the whole scan.
     """
     root = Path(root)
+    if not root.is_dir():
+        raise NotADirectoryError(f"not a folder: {root}")
+
     records = {}
 
+    # followlinks=False (the default) means we never walk into linked folders,
+    # this also protects us from symlink loops
     for folder, dirs, files in os.walk(root):
         folder = Path(folder)
 
-        # sorting makes the order the same on every run
         dirs.sort()
-        # removing items from dirs in place stops os.walk from entering them
         if ignore:
             dirs[:] = [d for d in dirs if not ignore(_rel(folder / d, root))]
 
@@ -36,13 +45,25 @@ def scan(root, ignore=None):
             if ignore and ignore(rel):
                 continue
 
-            st = full.stat()
+            # a symlink could point outside the folder, so we skip it
+            if full.is_symlink():
+                log.debug("skipping symlink %s", rel)
+                continue
+
+            try:
+                st = full.stat()
+                digest = hash_file(full)
+            except OSError as err:
+                # file deleted while scanning, or no permission
+                log.warning("cannot read %s (%s)", rel, err)
+                continue
+
             records[rel] = FileRecord(
                 path=rel,
-                sha256=hash_file(full),
+                sha256=digest,
                 size=st.st_size,
                 mtime=st.st_mtime,
-                mode=stat.S_IMODE(st.st_mode),  # only the permission bits
+                mode=stat.S_IMODE(st.st_mode),
             )
     return records
 
