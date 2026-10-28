@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "file-integrity-monitor"
+version = "0.1.0"
+description = "Simple file integrity monitoring tool (SHA-256 baseline and compare)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = []   # standard library only
+
+[project.scripts]
+fim = "fim.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["fim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
