@@ -1,0 +1,27 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# virtual environments
+.venv/
+venv/
+env/
+
+# tests and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# files the tool itself creates while we test it by hand
+baseline.json
+*.log
+fim.log
