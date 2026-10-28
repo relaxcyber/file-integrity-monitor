@@ -43,3 +43,29 @@ def test_overwrite_old_baseline(tmp_path):
     assert load_baseline(path) == {}
     # no temp file should stay behind
     assert not (tmp_path / "baseline.json.tmp").exists()
+
+
+def test_missing_file(tmp_path):
+    with pytest.raises(BaselineError, match="not found"):
+        load_baseline(tmp_path / "nothing.json")
+
+
+def test_broken_json(tmp_path):
+    path = tmp_path / "baseline.json"
+    path.write_text("{ this is not json")
+    with pytest.raises(BaselineError, match="not valid json"):
+        load_baseline(path)
+
+
+def test_wrong_version(tmp_path):
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"version": 99, "files": {}}))
+    with pytest.raises(BaselineError, match="version"):
+        load_baseline(path)
+
+
+def test_wrong_structure(tmp_path):
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"version": 1, "files": {"a.txt": {"oops": 1}}}))
+    with pytest.raises(BaselineError, match="structure"):
+        load_baseline(path)
